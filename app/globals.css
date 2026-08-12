@@ -150,6 +150,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 /* Detail hero: keep the launch identity on a calm, readable white surface. */
 .detail-screen .profile-hero { align-items: center; background: var(--surface); border: 1px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 22px; box-shadow: 0 18px 52px rgba(24, 27, 43, .055); min-height: 190px; padding: 30px 42px; }
 .detail-screen .profile-hero { background: #fff !important; padding: 30px 42px !important; }
+.match-row { grid-template-columns: 35px 32px minmax(0, 1fr) 14px; }
+.match-logo { align-items: center; background: transparent; border: 1px solid var(--line); border-radius: 9px; display: flex; height: 32px; justify-content: center; overflow: hidden; width: 32px; }
+.match-logo img { height: 100%; object-fit: contain; width: 100%; }
 .detail-screen .profile-identity { gap: 26px; }
 .detail-screen .profile-logo { height: 92px; width: 92px; }
 .detail-screen .profile-position { margin-left: 34px; padding-left: 34px; }
