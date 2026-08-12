@@ -281,16 +281,17 @@ revoke execute on function public.increment_startup_view(uuid, text) from anon;
 grant execute on function public.increment_startup_view(uuid, text) to authenticated;
 update public.startups as startup set votes_count = (select count(*) from public.votes where startup_id = startup.id), feedback_count = (select count(*) from public.comments where startup_id = startup.id), investor_interest_count = (select count(*) from public.investor_interests where startup_id = startup.id and status = 'interested'), view_count = (select count(*) from public.startup_views where startup_id = startup.id);
 
--- Keep the denormalized vote counter correct and repair any prior drift.
+-- Keep the denormalized vote counter aligned with each user action.
 create or replace function public.sync_vote_count() returns trigger language plpgsql security definer set search_path = public as $$
-declare affected_startup_id uuid;
 begin
-  affected_startup_id := case when tg_op = 'DELETE' then old.startup_id else new.startup_id end;
-  update public.startups set votes_count = (select count(*)::integer from public.votes where startup_id = affected_startup_id) where id = affected_startup_id;
+  if tg_op = 'INSERT' then
+    update public.startups set votes_count = votes_count + 1 where id = new.startup_id;
+  elsif tg_op = 'DELETE' then
+    update public.startups set votes_count = greatest(votes_count - 1, 0) where id = old.startup_id;
+  end if;
   return coalesce(new, old);
 end;
 $$;
-update public.startups as startup set votes_count = (select count(*) from public.votes where startup_id = startup.id);
 
 create or replace function public.get_startup_interest_count(p_startup_id uuid) returns integer language sql stable security definer set search_path = public as $$
   select count(*)::integer from public.investor_interests where startup_id = p_startup_id and status = 'interested';
