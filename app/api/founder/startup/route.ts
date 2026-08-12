@@ -20,10 +20,6 @@ export async function GET() {
     const interests = startup ? await getFounderInterests(supabase, startup.id) : [];
     if (!startup) return NextResponse.json({ source: "supabase", startup, interests });
     const { data: launchedRows } = await supabase.from("startups").select(startupFields).eq("status", "launched");
-    const launchedIds = (launchedRows ?? [startup]).map((row) => row.id);
-    const { data: voteRows } = await supabase.from("votes").select("startup_id").in("startup_id", launchedIds);
-    const voteTotals = new Map<string, number>();
-    for (const vote of voteRows ?? []) voteTotals.set(vote.startup_id, (voteTotals.get(vote.startup_id) ?? 0) + 1);
     const metricRows = await Promise.all((launchedRows ?? [startup]).map(async (row) => {
       const [interestResult, feedbackResult] = await Promise.all([
         supabase.rpc("get_startup_interest_count", { p_startup_id: row.id }),
@@ -33,7 +29,7 @@ export async function GET() {
     }));
     const metricByStartup = new Map(metricRows.map((row) => [row.startupId, row]));
     const founderMetrics = metricByStartup.get(startup.id) ?? { interests: Number(startup.investor_interest_count ?? 0), feedback: Number(startup.feedback_count ?? 0) };
-    const rankedStartup = normalizeSignalScores((launchedRows ?? [startup]).map((row) => { const metrics = metricByStartup.get(row.id) ?? { interests: Number(row.investor_interest_count ?? 0), feedback: Number(row.feedback_count ?? 0) }; return mapDatabaseStartup({ ...row, votes_count: voteTotals.get(row.id) ?? 0, investor_interest_count: metrics.interests, feedback_count: metrics.feedback }); })).find((row) => row.id === startup.id);
+    const rankedStartup = normalizeSignalScores((launchedRows ?? [startup]).map((row) => { const metrics = metricByStartup.get(row.id) ?? { interests: Number(row.investor_interest_count ?? 0), feedback: Number(row.feedback_count ?? 0) }; return mapDatabaseStartup({ ...row, votes_count: Number(row.votes_count ?? 0), investor_interest_count: metrics.interests, feedback_count: metrics.feedback }); })).find((row) => row.id === startup.id);
     return NextResponse.json({ source: "supabase", startup: { ...startup, votes_count: rankedStartup?.votes ?? startup.votes_count, investor_interest_count: founderMetrics.interests, feedback_count: founderMetrics.feedback, signal_score: rankedStartup?.signalScore ?? mapDatabaseStartup(startup).signalScore }, interests });
   } catch (error) {
     return NextResponse.json({ error: errorMessage(error, "Founder studio could not be loaded.") }, { status: 502 });

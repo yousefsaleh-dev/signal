@@ -26,9 +26,9 @@ export async function GET(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
   const startupIds = (startupRows ?? []).map((startup) => startup.id);
   const since = new Date(Date.now() - 7 * 86400000).toISOString();
-  const [votes, comments, allVotes] = await Promise.all([supabase.from("votes").select("startup_id").in("startup_id", startupIds).gte("created_at", since), supabase.from("comments").select("startup_id").in("startup_id", startupIds).gte("created_at", since), supabase.from("votes").select("startup_id").in("startup_id", startupIds)]);
+  const [votes, comments] = await Promise.all([supabase.from("votes").select("startup_id").in("startup_id", startupIds).gte("created_at", since), supabase.from("comments").select("startup_id").in("startup_id", startupIds).gte("created_at", since)]);
   const interests = user ? await supabase.from("investor_interests").select("startup_id").in("startup_id", startupIds).eq("status", "interested").gte("created_at", since) : { data: [], error: null };
-  const activityError = votes.error ?? comments.error ?? allVotes.error ?? interests.error;
+  const activityError = votes.error ?? comments.error ?? interests.error;
   if (activityError) return NextResponse.json({ error: activityError.message }, { status: 502 });
   const interestTotals = await Promise.all(startupIds.map(async (startupId) => {
     const result = await supabase.rpc("get_startup_interest_count", { p_startup_id: startupId });
@@ -44,10 +44,8 @@ export async function GET(request: Request) {
   for (const row of votes.data ?? []) incrementActivity(activity, row.startup_id, "votes");
   for (const row of comments.data ?? []) incrementActivity(activity, row.startup_id, "feedback");
   for (const row of interests.data ?? []) incrementActivity(activity, row.startup_id, "interest");
-  const voteTotals = new Map<string, number>();
-  for (const row of allVotes.data ?? []) voteTotals.set(row.startup_id, (voteTotals.get(row.startup_id) ?? 0) + 1);
-  const rankedStartups = normalizeSignalScores((startupRows ?? []).map((startup) => { const recent = activity.get(startup.id) ?? { votes: 0, interest: 0, feedback: 0 }; const source = { ...startup, votes_count: voteTotals.get(startup.id) ?? 0, investor_interest_count: interestTotalsById.get(startup.id) ?? startup.investor_interest_count ?? 0, feedback_count: feedbackTotalsById.get(startup.id) ?? startup.feedback_count ?? 0 }; return mapDatabaseStartup(source, calculateTrendingScore(recent.votes, recent.interest, recent.feedback)); }));
-  const startups = rankedStartups.filter((startup) => category !== "Trending" || startup.trending).sort((a, b) => sort === "new" || category === "New" ? b.createdAt.localeCompare(a.createdAt) : category === "Trending" ? b.trendingScore - a.trendingScore : compareSignalRank(b, a)).slice(0, 10);
+  const rankedStartups = normalizeSignalScores((startupRows ?? []).map((startup) => { const recent = activity.get(startup.id) ?? { votes: 0, interest: 0, feedback: 0 }; const source = { ...startup, votes_count: Number(startup.votes_count ?? 0), investor_interest_count: interestTotalsById.get(startup.id) ?? startup.investor_interest_count ?? 0, feedback_count: feedbackTotalsById.get(startup.id) ?? startup.feedback_count ?? 0 }; return mapDatabaseStartup(source, calculateTrendingScore(recent.votes, recent.interest, recent.feedback)); }));
+  const startups = rankedStartups.filter((startup) => category !== "Trending" || startup.trending).sort((a, b) => sort === "new" || category === "New" ? b.createdAt.localeCompare(a.createdAt) : category === "Trending" ? b.trendingScore - a.trendingScore : compareSignalRank(b, a)).slice(0, 15);
   if (!user) return NextResponse.json({ source: "supabase", startups, viewer: { votedIds: [], savedIds: [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   const [viewerVotes, viewerSaves] = await Promise.all([
     supabase.from("votes").select("startup_id").eq("user_id", user.id).in("startup_id", startupIds),

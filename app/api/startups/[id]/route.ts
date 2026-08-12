@@ -15,9 +15,6 @@ export async function GET(_request: Request, context: RouteContext) {
   if (!startup) return NextResponse.json({ error: "Startup not found." }, { status: 404 });
   const { data: rankingRows } = await supabase.from("startups").select("*").eq("status", "launched");
   const rankingSource = rankingRows ?? [startup];
-  const { data: voteRows } = await supabase.from("votes").select("startup_id").in("startup_id", rankingSource.map((row) => row.id));
-  const voteTotals = new Map<string, number>();
-  for (const vote of voteRows ?? []) voteTotals.set(vote.startup_id, (voteTotals.get(vote.startup_id) ?? 0) + 1);
   const interestTotals = await Promise.all(rankingSource.map(async (row) => {
     const result = await supabase.rpc("get_startup_interest_count", { p_startup_id: row.id });
     return [row.id, typeof result.data === "number" && !result.error ? result.data : Number(row.investor_interest_count ?? 0)] as const;
@@ -28,7 +25,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return [row.id, typeof result.data === "number" && !result.error ? result.data : Number(row.feedback_count ?? 0)] as const;
   }));
   const feedbackTotalsById = new Map(feedbackTotals);
-  const rankedStartup = normalizeSignalScores(rankingSource.map((row) => mapDatabaseStartup({ ...row, votes_count: voteTotals.get(row.id) ?? 0, investor_interest_count: interestTotalsById.get(row.id) ?? 0, feedback_count: feedbackTotalsById.get(row.id) ?? 0 }))).find((row) => row.id === id) ?? mapDatabaseStartup({ ...startup, investor_interest_count: interestTotalsById.get(id) ?? startup.investor_interest_count, feedback_count: feedbackTotalsById.get(id) ?? startup.feedback_count });
+  const rankedStartup = normalizeSignalScores(rankingSource.map((row) => mapDatabaseStartup({ ...row, votes_count: Number(row.votes_count ?? 0), investor_interest_count: interestTotalsById.get(row.id) ?? 0, feedback_count: feedbackTotalsById.get(row.id) ?? 0 }))).find((row) => row.id === id) ?? mapDatabaseStartup({ ...startup, votes_count: Number(startup.votes_count ?? 0), investor_interest_count: interestTotalsById.get(id) ?? startup.investor_interest_count, feedback_count: feedbackTotalsById.get(id) ?? startup.feedback_count });
   const { user } = await getAuthenticatedUser();
   const [commentRows, voteRow, saveRow, interestRow] = await Promise.all([
     supabase.from("comments").select("id, content, created_at, user_id, profiles(full_name, role, avatar_url)").eq("startup_id", id).order("created_at", { ascending: false }),

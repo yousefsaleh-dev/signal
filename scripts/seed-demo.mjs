@@ -2,6 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 
 const DEMO_PASSWORD = "SignalDemo!2026";
 const LOGO_SOURCE = "https://logoipsum.com/";
+const SESSION_INTERVAL_MS = 9000;
+let lastSessionAt = 0;
 
 const startupSeeds = [
   { name: "Handrail", slug: "handrail", category: "SaaS", founderName: "Maya Haddad", slogan: "Keep the work moving after the meeting ends.", shortDescription: "Handrail turns scattered decisions into a visible trail of owners, dates, and next steps for teams that work across too many tools.", longDescription: "Most teams do not lose momentum because they lack another project board. They lose it in the quiet space after a meeting: a decision lives in a recording, an owner lives in a chat thread, and the deadline lives in someone's memory. Handrail captures the decision while it is still fresh, gives it one accountable owner, and keeps the next step visible until it is closed. The product is designed for small operating teams that want less ceremony and more follow-through.", votes: 168, comments: 32, interests: 8, views: 420 },
@@ -48,6 +50,9 @@ function createPublicClient() {
 }
 
 async function createUserClient(account) {
+  const wait = Math.max(0, SESSION_INTERVAL_MS - (Date.now() - lastSessionAt));
+  if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+  lastSessionAt = Date.now();
   const adminClient = createAdminClient();
   const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({ type: "magiclink", email: account.email });
   if (linkError || !linkData?.properties?.action_link) throw new Error(`Could not create a session for ${account.email}: ${linkError?.message ?? "No action link returned."}`);
@@ -120,8 +125,7 @@ async function collectLogoSvgs() {
   return unique.slice(0, startupSeeds.length);
 }
 
-async function uploadLogoForFounder(founder, startupId, seed, logoSvg) {
-  const client = await createUserClient(founder.seedAccount);
+async function uploadLogoForFounder(client, founder, startupId, seed, logoSvg) {
   const path = `${founder.id}/${startupId}/logo.svg`;
   const { error: uploadError } = await client.storage.from("startup-logos").upload(path, new Blob([logoSvg], { type: "image/svg+xml" }), { contentType: "image/svg+xml", upsert: true });
   if (uploadError) throw new Error(`Logo upload failed for ${seed.name}: ${uploadError.message}`);
@@ -136,10 +140,10 @@ async function seedStartups(founders, logoSvgs) {
   for (let index = 0; index < startupSeeds.length; index += 1) {
     const seed = startupSeeds[index];
     const founderClient = await createUserClient(founders[index].seedAccount);
-    const row = { founder_id: founders[index].id, name: seed.name, slug: seed.slug, slogan: seed.slogan, short_description: seed.shortDescription, long_description: seed.longDescription, website_url: null, category: seed.category, status: "launched", view_count: seed.views, created_at: new Date(Date.now() - (index + 4) * 86400000).toISOString(), launched_at: new Date(Date.now() - (index + 3) * 86400000).toISOString() };
+    const row = { founder_id: founders[index].id, name: seed.name, slug: seed.slug, slogan: seed.slogan, short_description: seed.shortDescription, long_description: seed.longDescription, website_url: null, category: seed.category, status: "launched", votes_count: seed.votes, view_count: seed.views, created_at: new Date(Date.now() - (index + 4) * 86400000).toISOString(), launched_at: new Date(Date.now() - (index + 3) * 86400000).toISOString() };
     const { data, error } = await founderClient.from("startups").insert(row).select("id, name, slug").single();
     if (error) throw new Error(`Startup seed failed for ${seed.name}: ${error.message}`);
-    await uploadLogoForFounder(founders[index], data.id, seed, logoSvgs[index]);
+    await uploadLogoForFounder(founderClient, founders[index], data.id, seed, logoSvgs[index]);
     startups.push(data);
   }
   return startups;
@@ -155,9 +159,9 @@ async function seedPublicActivity(startups, publicUsers) {
   for (let userIndex = 0; userIndex < publicUsers.length; userIndex += 1) {
     const account = publicUsers[userIndex];
     const client = await createUserClient(account.seedAccount);
-    const votes = startups.filter((_, startupIndex) => userIndex < startupSeeds[startupIndex].votes).map((startup, startupIndex) => ({ startup_id: startup.id, user_id: account.id, created_at: activityDate(startupIndex, userIndex) }));
-    const comments = startups.filter((_, startupIndex) => userIndex < startupSeeds[startupIndex].comments).map((startup, startupIndex) => ({ startup_id: startup.id, user_id: account.id, content: commentTemplates[(startupIndex + userIndex) % commentTemplates.length], created_at: activityDate(startupIndex, userIndex + 7) }));
-    const saves = startups.filter((_, startupIndex) => userIndex < Math.min(58 - startupIndex * 3, publicUsers.length)).map((startup, startupIndex) => ({ startup_id: startup.id, user_id: account.id, created_at: activityDate(startupIndex, userIndex + 11) }));
+    const votes = startups.map((startup, startupIndex) => ({ startup_id: startup.id, user_id: account.id, created_at: activityDate(startupIndex, userIndex) }));
+    const comments = startups.flatMap((startup, startupIndex) => Array.from({ length: startupSeeds[startupIndex].comments }, (_, commentIndex) => commentIndex % publicUsers.length === userIndex ? ({ startup_id: startup.id, user_id: account.id, content: commentTemplates[(startupIndex + commentIndex) % commentTemplates.length], created_at: activityDate(startupIndex, commentIndex + 7) }) : null).filter(Boolean));
+    const saves = startups.filter((_, startupIndex) => (startupIndex + userIndex) % 2 === 0).map((startup, startupIndex) => ({ startup_id: startup.id, user_id: account.id, created_at: activityDate(startupIndex, userIndex + 11) }));
     await seedUserRecords(client, "votes", votes);
     await seedUserRecords(client, "comments", comments);
     await seedUserRecords(client, "saves", saves);
@@ -178,18 +182,27 @@ async function seedActivity(startups, publicUsers, investors) {
   await seedInvestorActivity(startups, investors);
 }
 
+async function restoreDemoSignalCounters(startups, founders) {
+  for (let index = 0; index < startups.length; index += 1) {
+    const client = await createUserClient(founders[index].seedAccount);
+    const { error } = await client.from("startups").update({ votes_count: startupSeeds[index].votes }).eq("id", startups[index].id).eq("founder_id", founders[index].id);
+    if (error) throw new Error(`Demo signal counter restore failed for ${startupSeeds[index].name}: ${error.message}`);
+  }
+}
+
 async function verifySeed() {
   const supabase = createPublicClient();
   const { data, error } = await supabase.from("startups").select("name, status, votes_count, investor_interest_count, feedback_count, view_count").order("votes_count", { ascending: false });
   if (error) throw new Error(`Seed verification failed: ${error.message}`);
   if (data.length !== startupSeeds.length || data.some((startup) => startup.status !== "launched")) throw new Error("Seed verification found an unexpected startup set.");
+  if ((data[0]?.votes_count ?? 0) < 100 || (data[1]?.votes_count ?? 0) < 100 || (data[2]?.votes_count ?? 0) < 100) throw new Error("Seed verification found fewer than 100 signals on one of the first three startups.");
   console.table(data);
 }
 
 function makeAccounts() {
   const founders = startupSeeds.map((seed, index) => ({ email: makeSeedEmail("founder", index + 1), name: seed.founderName, role: "founder" }));
-  const investors = Array.from({ length: 12 }, (_, index) => ({ email: index === 0 ? "demo.investor@signal-demo.example.com" : makeSeedEmail("investor", index), name: index === 0 ? "Omar Fathy" : `Seed Investor ${index}`, role: "investor", bio: "Looks for practical products with clear user evidence.", interests: ["SaaS", "FinTech", "HealthTech"] }));
-  const publicAccounts = Array.from({ length: 180 }, (_, index) => ({ email: index === 0 ? "demo.explorer@signal-demo.example.com" : makeSeedEmail("explorer", index), name: index === 0 ? "Nour Adel" : `Seed Explorer ${index}`, role: "public" }));
+  const investors = Array.from({ length: 8 }, (_, index) => ({ email: index === 0 ? "demo.investor@signal-demo.example.com" : makeSeedEmail("investor", index), name: index === 0 ? "Omar Fathy" : `Seed Investor ${index}`, role: "investor", bio: "Looks for practical products with clear user evidence.", interests: ["SaaS", "FinTech", "HealthTech"] }));
+  const publicAccounts = Array.from({ length: 6 }, (_, index) => ({ email: index === 0 ? "demo.explorer@signal-demo.example.com" : makeSeedEmail("explorer", index), name: index === 0 ? "Nour Adel" : `Seed Explorer ${index}`, role: "public" }));
   return { founders, investors, publicAccounts };
 }
 
@@ -201,6 +214,7 @@ async function main() {
   const logos = await collectLogoSvgs();
   const startups = await seedStartups(founders, logos);
   await seedActivity(startups, publicUsers, investors);
+  await restoreDemoSignalCounters(startups, founders);
   await verifySeed();
   console.log("Demo accounts:");
   console.log("Explorer: demo.explorer@signal-demo.example.com");
