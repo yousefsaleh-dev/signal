@@ -334,8 +334,9 @@ function DiscoverPage({ role, isAuthenticated, onOpenDetails, onToast, onRequire
   }, [activeCategory, query, sortMode, isAuthenticated]);
 
   const launchLabel = activeCategory === "All" ? "Live launches" : activeCategory;
-  const totalSignals = visibleStartups.reduce((total, startup) => total + startup.votes, 0);
-  const pulseHeights = [34, 21, 43, 28, 57, 35, 68, 31, 49, 25, 61, 38].map((height, index) => Math.max(12, Math.min(100, height + Math.min(22, totalSignals * 2) + (visibleStartups.length ? (index % Math.max(1, visibleStartups.length)) * 2 : 0))));
+  const displayedStartups = visibleStartups.slice(0, launchLimit);
+  const totalSignals = displayedStartups.reduce((total, startup) => total + startup.votes, 0);
+  const pulseHeights = [34, 21, 43, 28, 57, 35, 68, 31, 49, 25, 61, 38].map((height, index) => Math.max(12, Math.min(100, height + Math.min(22, totalSignals * 0.02) + (displayedStartups.length ? (index % Math.max(1, displayedStartups.length)) * 2 : 0))));
 
   async function runAiMatch() {
     setAiState("loading");
@@ -402,7 +403,7 @@ function DiscoverPage({ role, isAuthenticated, onOpenDetails, onToast, onRequire
   return <div className="screen discover-screen">
     {!isAuthenticated && <section className="discover-intro reveal">
       <div className="intro-copy"><p className="eyebrow"><span className="signal-dot" />The open startup index</p><h1>See what is <em>moving.</em></h1><p className="intro-description">A calmer way to find early products with real traction, useful feedback, and a reason to keep watching.</p><div className="intro-actions"><button className="primary-button" onClick={onLaunch}>List a startup <ArrowUpRight size={15} /></button><span className="index-note"><span className="live-indicator" />Live signals, updated as they move</span></div></div>
-      <div className="pulse-card"><div className="pulse-card-head"><span>Live index</span><span className="pulse-period">Real-time data</span></div><div className="pulse-visual" aria-label={`${totalSignals} public signals`} role="img">{pulseHeights.map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}</div><div className="pulse-foot"><strong>{visibleStartups.length}</strong><span>launches in view</span><strong>{totalSignals}</strong><span>public signals</span></div></div>
+      <div className="pulse-card"><div className="pulse-card-head"><span>Live index</span><span className="pulse-period">Real-time data</span></div><div className="pulse-visual" aria-label={`${totalSignals} public signals`} role="img">{pulseHeights.map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}</div><div className="pulse-foot"><strong>{displayedStartups.length}</strong><span>launches in view</span><strong>{totalSignals}</strong><span>public signals</span></div></div>
     </section>}
 
     <section className={isAuthenticated ? "index-shell signed-index-shell reveal" : "index-shell reveal reveal-delay-1"}>
