@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
+  ArrowDown,
   ArrowUpRight,
   Bookmark,
   Bell,
@@ -295,6 +296,7 @@ function DiscoverPage({ role, isAuthenticated, onOpenDetails, onToast, onRequire
   const [votedIds, setVotedIds] = useState<string[]>([]);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [visibleStartups, setVisibleStartups] = useState<Startup[]>([]);
+  const [launchLimit, setLaunchLimit] = useState(10);
   const [dataLoading, setDataLoading] = useState(true);
   const [dataError, setDataError] = useState("");
   const [aiQuery, setAiQuery] = useState("Find B2B startups with strong user momentum");
@@ -311,6 +313,7 @@ function DiscoverPage({ role, isAuthenticated, onOpenDetails, onToast, onRequire
     async function loadLaunches() {
       setDataLoading(true);
       setDataError("");
+      setLaunchLimit(10);
       try {
         const sort = sortMode === "Newest" ? "new" : "top";
         const response = await fetch(`/api/startups?q=${encodeURIComponent(query)}&category=${encodeURIComponent(activeCategory)}&sort=${sort}`, { cache: "no-store", signal: controller.signal });
@@ -409,7 +412,7 @@ function DiscoverPage({ role, isAuthenticated, onOpenDetails, onToast, onRequire
       <div className={role === "investor" ? "index-layout investor-layout" : "index-layout"}>
         <div className="launch-column">
           {dataError && <div className="inline-error"><strong>Launches are taking a moment.</strong><span>{dataError}</span><button onClick={() => setQuery((value) => value)}>Retry</button></div>}
-          {dataLoading ? <div className="launch-list">{[1, 2, 3, 4].map((item) => <LaunchSkeleton key={item} />)}</div> : visibleStartups.length ? <div className="launch-list">{visibleStartups.map((startup, index) => <LaunchRow key={startup.id} startup={startup} rank={index + 1} hasVoted={votedIds.includes(startup.id)} isSaved={savedIds.includes(startup.id)} onVote={() => toggleVote(startup)} onSave={() => toggleSave(startup)} onOpen={() => onOpenDetails(startup.id)} onToast={onToast} />)}</div> : <EmptyState title="Nothing is live here yet" body={query || activeCategory !== "All" ? "Try another search or clear the current filter." : "The public index is empty until a founder publishes a startup."} actionLabel={query || activeCategory !== "All" ? "Clear filters" : "List a startup"} onAction={query || activeCategory !== "All" ? () => { setQuery(""); setActiveCategory("All"); } : onLaunch} />}
+          {dataLoading ? <div className="launch-list">{[1, 2, 3, 4].map((item) => <LaunchSkeleton key={item} />)}</div> : visibleStartups.length ? <><div className="launch-list">{visibleStartups.slice(0, launchLimit).map((startup, index) => <LaunchRow key={startup.id} startup={startup} rank={index + 1} hasVoted={votedIds.includes(startup.id)} isSaved={savedIds.includes(startup.id)} onVote={() => toggleVote(startup)} onSave={() => toggleSave(startup)} onOpen={() => onOpenDetails(startup.id)} onToast={onToast} />)}</div>{visibleStartups.length > launchLimit && <button className="see-more-button" onClick={() => setLaunchLimit((limit) => Math.min(limit + 5, visibleStartups.length))}>See more <ArrowDown size={14} /></button>}</> : <EmptyState title="Nothing is live here yet" body={query || activeCategory !== "All" ? "Try another search or clear the current filter." : "The public index is empty until a founder publishes a startup."} actionLabel={query || activeCategory !== "All" ? "Clear filters" : "List a startup"} onAction={query || activeCategory !== "All" ? () => { setQuery(""); setActiveCategory("All"); } : onLaunch} />}
         </div>
         {role === "investor" ? <InvestorLens aiQuery={aiQuery} setAiQuery={setAiQuery} aiState={aiState} aiStep={aiStep} aiMatches={aiMatches} aiSummary={aiSummary} aiProvider={aiProvider} aiModel={aiModel} aiError={aiError} runAiMatch={runAiMatch} onOpenDetails={onOpenDetails} /> : <PublicAside isAuthenticated={isAuthenticated} onLaunch={onLaunch} />}
       </div>

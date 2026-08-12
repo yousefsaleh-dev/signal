@@ -25,6 +25,7 @@ export async function GET(request: Request) {
   const { data: startupRows, error } = await startupQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 502 });
   const startupIds = (startupRows ?? []).map((startup) => startup.id);
+  if (!startupIds.length) return NextResponse.json({ source: "supabase", startups: [], viewer: { votedIds: [], savedIds: [] } }, { headers: { "Cache-Control": "no-store, max-age=0" } });
   const since = new Date(Date.now() - 7 * 86400000).toISOString();
   const [votes, comments] = await Promise.all([supabase.from("votes").select("startup_id").in("startup_id", startupIds).gte("created_at", since), supabase.from("comments").select("startup_id").in("startup_id", startupIds).gte("created_at", since)]);
   const interests = user ? await supabase.from("investor_interests").select("startup_id").in("startup_id", startupIds).eq("status", "interested").gte("created_at", since) : { data: [], error: null };

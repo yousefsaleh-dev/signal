@@ -127,6 +127,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .screen { max-width: 1360px; }
 .index-layout { gap: 32px; grid-template-columns: minmax(0, 1fr) 330px; }
 .launch-list { border-top: 0; display: grid; gap: 11px; }
+.see-more-button { align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; color: var(--accent); display: flex; font-size: 11px; font-weight: 700; gap: 7px; justify-content: center; margin: 16px auto 0; padding: 10px 16px; transition: background .2s ease, border-color .2s ease, transform .2s ease; }
+.see-more-button:hover { background: var(--accent-soft); border-color: #cfcaff; transform: translateY(-1px); }
 .launch-row { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; gap: 17px; grid-template-columns: 42px 56px minmax(0, 1fr) 112px 132px; padding: 18px 20px; }
 .launch-row:hover { box-shadow: var(--shadow-soft); transform: translateY(-2px); }
 .rank-cell { align-items: center; color: var(--faint); display: inline-flex; font-variant-numeric: tabular-nums; justify-content: center; padding: 0; }
