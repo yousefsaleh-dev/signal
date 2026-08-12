@@ -117,12 +117,22 @@ async function collectLogoSvgs() {
     const response = await fetch(source, { headers: { "User-Agent": "SIGNAL demo seed" } });
     if (!response.ok) throw new Error(`Logo source returned ${response.status}.`);
     const html = await response.text();
-    candidates.push(...(html.match(/<svg[\s\S]*?<\/svg>/gi)?.filter((svg) => svg.length > 1000 && !/class=["']w-/i.test(svg)) ?? []));
+    candidates.push(...(html.match(/<svg[\s\S]*?<\/svg>/gi)?.filter((svg) => svg.length > 1000 && !/class=["']w-/i.test(svg)).map(toIconOnlySvg) ?? []));
     if (candidates.length >= startupSeeds.length) break;
   }
   const unique = [...new Map(candidates.map((svg) => [svg.replace(/\s+/g, ""), svg])).values()];
   if (unique.length < startupSeeds.length) throw new Error(`Logo source returned only ${unique.length} usable marks.`);
   return unique.slice(0, startupSeeds.length);
+}
+
+function toIconOnlySvg(svg) {
+  const viewBoxMatch = svg.match(/viewBox\s*=\s*["']\s*([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)\s*["']/i);
+  if (!viewBoxMatch) return svg;
+  const [, minX, minY, width, height] = viewBoxMatch;
+  const numericWidth = Number(width);
+  const numericHeight = Number(height);
+  if (!numericWidth || !numericHeight || numericWidth <= numericHeight * 1.25) return svg;
+  return svg.replace(viewBoxMatch[0], `viewBox="${minX} ${minY} ${height} ${height}"`).replace(/\s(width|height)\s*=\s*["'][^"']*["']/gi, "");
 }
 
 async function uploadLogoForFounder(client, founder, startupId, seed, logoSvg) {

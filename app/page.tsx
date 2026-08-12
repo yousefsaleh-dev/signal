@@ -242,7 +242,7 @@ export default function HomePage() {
 }
 
 function InitialLoader() {
-  return <div className="initial-loader" aria-label="Loading SIGNAL"><svg className="ecg-loader" viewBox="0 0 100 20" preserveAspectRatio="none" aria-hidden="true"><path className="ecg-trace" d="M0 10H35 C37 10 38 8 40 5 C42 2 44 2 46 5 C48 8 49 17 51 17 C53 17 54 2 56 2 C58 2 59 8 61 10 C63 10 64 10 65 10 H100" /></svg></div>;
+  return <div className="initial-loader" aria-label="Loading SIGNAL"><svg className="ecg-loader" viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true"><path className="ecg-trace" pathLength="1" d="M0 20H35L39 20L42 4L45 36L48 20H52L55 8L58 34L61 20H100" /></svg></div>;
 }
 
 function Header({ currentView, currentUser, notifications, notificationsOpen, onToggleNotifications, mobileNavOpen, onToggleMobileNav, onNavigate, onOpenDetails, onOpenFounderRequest, onOpenAccountSettings, onSignIn, onLaunch, onSignOut }: { currentView: View; currentUser: CurrentUser | null; notifications: NotificationItem[]; notificationsOpen: boolean; onToggleNotifications: () => void; mobileNavOpen: boolean; onToggleMobileNav: () => void; onNavigate: (view: View) => void; onOpenDetails: (id: string) => void; onOpenFounderRequest: (interestId: string) => void; onOpenAccountSettings: () => void; onSignIn: () => void; onLaunch: () => void; onSignOut: () => void }) {

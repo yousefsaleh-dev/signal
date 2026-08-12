@@ -166,8 +166,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 
 .founder-conversion-modal { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow-float); max-width: 470px; padding: 30px; position: relative; width: 100%; }
+.initial-loader { background: var(--paper); }
+.ecg-loader { height: 88px; }
+.ecg-trace { stroke-linecap: butt; stroke-linejoin: miter; stroke-width: 3.2; stroke-dasharray: 1; stroke-dashoffset: 1; }
 .conversion-close { align-items: center; background: var(--surface-soft); border: 1px solid var(--line); border-radius: 9px; color: var(--muted); display: inline-flex; height: 32px; justify-content: center; position: absolute; right: 18px; top: 18px; width: 32px; }
 .conversion-close:hover { border-color: var(--ink); color: var(--ink); }
+
+/* SIGNAL visual polish: quiet surfaces, stronger rhythm, and one consistent control language. */
+body { background: radial-gradient(circle at 50% -20%, rgba(239, 238, 255, .75), transparent 40%), var(--paper); }
+.topbar { background: rgba(246, 247, 249, .86); backdrop-filter: blur(16px); }
+.screen { max-width: 1320px; }
+.section-lead h2, .card-heading h2, .card-heading h3, .story-card h2, .feedback-card h2, .workspace-card h2 { letter-spacing: -.055em; }
+.public-aside, .investor-lens, .story-card, .feedback-card, .signal-board, .related-card, .workspace-card, .profile-hero, .intro-request-card, .auth-sheet { border-radius: 20px; box-shadow: 0 18px 52px rgba(24, 27, 43, .055); }
+.launch-row { border-radius: 18px; box-shadow: 0 8px 28px rgba(24, 27, 43, .035); }
+.launch-row:hover { box-shadow: 0 18px 42px rgba(24, 27, 43, .09); }
+.startup-mark { border-radius: 15px; }
+.primary-button, .secondary-button, .signal-button, .quiet-button, .header-cta { border-radius: 11px; min-height: 42px; }
+.field input, .field textarea, .field select, .investor-lens textarea, .search-box, .sort-box { border-radius: 12px; }
+.filter-chip { border-radius: 999px; }
+.profile-logo, .related-logo, .startup-preview-logo, .logo-picker-preview { background: transparent; }
+.profile-logo img, .startup-mark img, .related-logo img, .startup-preview-logo img, .logo-picker-preview img { object-fit: contain; mix-blend-mode: multiply; }
+.see-more-button { box-shadow: 0 8px 20px rgba(61, 54, 168, .06); }
 .conversion-icon { align-items: center; background: var(--accent-soft); border: 1px solid #d8d3ff; border-radius: 12px; color: var(--accent); display: inline-flex; height: 42px; justify-content: center; margin-bottom: 22px; width: 42px; }
 .founder-conversion-modal h2 { color: var(--ink); font-family: var(--display); font-size: 30px; letter-spacing: -.06em; line-height: 1.08; margin: 7px 45px 12px 0; }
 .conversion-copy { color: var(--muted); font-size: 12px; line-height: 1.65; margin: 0; max-width: 390px; }
